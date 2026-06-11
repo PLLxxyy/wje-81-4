@@ -1,0 +1,20 @@
+{
+  "name": "concert-ticket-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "全栈演唱会票务购买平台",
+  "scripts": {
+    "install:all": "pnpm install && cd backend && pnpm install && cd ../frontend-user && pnpm install && cd ../frontend-admin && pnpm install",
+    "dev:backend": "cd backend && pnpm run dev",
+    "dev:user": "cd frontend-user && pnpm run dev",
+    "dev:admin": "cd frontend-admin && pnpm run dev",
+    "dev": "concurrently \"pnpm run dev:backend\" \"pnpm run dev:user\" \"pnpm run dev:admin\"",
+    "build:backend": "cd backend && pnpm run build",
+    "build:user": "cd frontend-user && pnpm run build",
+    "build:admin": "cd frontend-admin && pnpm run build",
+    "build": "pnpm run build:backend && pnpm run build:user && pnpm run build:admin"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
