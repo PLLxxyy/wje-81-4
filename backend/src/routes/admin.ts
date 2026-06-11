@@ -123,7 +123,11 @@ router.get('/orders/:id', authenticateToken, requireAdmin, (req, res) => {
     attendee_id_no: item.ticket_holder_id_card,
     attendeeIdNo: item.ticket_holder_id_card,
     qr_code: item.qr_code,
-    qrCode: item.qr_code
+    qrCode: item.qr_code,
+    checkin_status: item.checkin_status || 'unused',
+    checkinStatus: item.checkin_status || 'unused',
+    checked_in_at: item.checked_in_at,
+    checkedInAt: item.checked_in_at
   }));
 
   const anyOrder = order as any;
@@ -251,6 +255,92 @@ router.get('/sales/trend', authenticateToken, requireAdmin, (req, res) => {
   const trend = db.prepare(query).all(...params);
 
   res.json({ trend });
+});
+
+router.post('/order-items/:itemId/checkin', authenticateToken, requireAdmin, (req, res) => {
+  const itemId = parseInt(req.params.itemId);
+
+  const item = db.prepare('SELECT oi.*, o.status as order_status FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.id = ?').get(itemId) as any;
+
+  if (!item) {
+    return res.status(404).json({ error: '票券不存在' });
+  }
+  if (item.order_status !== 'paid') {
+    return res.status(400).json({ error: '只有已支付订单的票券才能核销' });
+  }
+  if (item.checkin_status === 'checked_in') {
+    return res.status(400).json({ error: '该票券已核销' });
+  }
+
+  try {
+    db.prepare("UPDATE order_items SET checkin_status = 'checked_in', checked_in_at = DATETIME('now') WHERE id = ?").run(itemId);
+    const updated = db.prepare('SELECT * FROM order_items WHERE id = ?').get(itemId);
+    res.json({ success: true, message: '核销成功', item: updated });
+  } catch (error) {
+    res.status(500).json({ error: '核销失败', success: false });
+  }
+});
+
+router.post('/order-items/:itemId/checkin/cancel', authenticateToken, requireAdmin, (req, res) => {
+  const itemId = parseInt(req.params.itemId);
+
+  const item = db.prepare('SELECT * FROM order_items WHERE id = ?').get(itemId) as any;
+
+  if (!item) {
+    return res.status(404).json({ error: '票券不存在' });
+  }
+  if (item.checkin_status !== 'checked_in') {
+    return res.status(400).json({ error: '该票券未核销，无需撤销' });
+  }
+
+  try {
+    db.prepare("UPDATE order_items SET checkin_status = 'unused', checked_in_at = NULL WHERE id = ?").run(itemId);
+    const updated = db.prepare('SELECT * FROM order_items WHERE id = ?').get(itemId);
+    res.json({ success: true, message: '撤销核销成功', item: updated });
+  } catch (error) {
+    res.status(500).json({ error: '撤销核销失败', success: false });
+  }
+});
+
+router.post('/orders/:id/checkin/batch', authenticateToken, requireAdmin, (req, res) => {
+  const orderId = parseInt(req.params.id);
+  const { item_ids } = req.body;
+
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as Order;
+
+  if (!order) {
+    return res.status(404).json({ error: '订单不存在' });
+  }
+  if (order.status !== 'paid') {
+    return res.status(400).json({ error: '只有已支付的订单才能核销' });
+  }
+
+  let ids = item_ids;
+  if (!ids || ids.length === 0) {
+    const items = db.prepare('SELECT id FROM order_items WHERE order_id = ? AND checkin_status = ?').all(orderId, 'unused') as { id: number }[];
+    ids = items.map(i => i.id);
+  }
+
+  if (ids.length === 0) {
+    return res.status(400).json({ error: '没有可核销的票券' });
+  }
+
+  const placeholders = ids.map(() => '?').join(',');
+
+  try {
+    const result = db.prepare(`
+      UPDATE order_items SET checkin_status = 'checked_in', checked_in_at = DATETIME('now')
+      WHERE id IN (${placeholders}) AND order_id = ? AND checkin_status = 'unused'
+    `).run(...ids, orderId);
+
+    res.json({
+      success: true,
+      message: `成功核销 ${result.changes} 张票券`,
+      checkedCount: result.changes
+    });
+  } catch (error) {
+    res.status(500).json({ error: '批量核销失败', success: false });
+  }
 });
 
 export default router;

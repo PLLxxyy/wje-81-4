@@ -67,6 +67,8 @@ export interface OrderItem {
   ticket_holder_id_card: string;
   price: number;
   qr_code?: string;
+  checkin_status: 'unused' | 'checked_in';
+  checked_in_at?: string;
 }
 
 export interface JWTPayload {

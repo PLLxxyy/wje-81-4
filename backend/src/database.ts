@@ -86,6 +86,8 @@ export function initDatabase() {
       ticket_holder_id_card TEXT NOT NULL,
       price REAL NOT NULL,
       qr_code TEXT,
+      checkin_status TEXT DEFAULT 'unused',
+      checked_in_at DATETIME,
       FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
       FOREIGN KEY (seat_id) REFERENCES seats(id),
       FOREIGN KEY (tier_id) REFERENCES ticket_tiers(id)
@@ -98,6 +100,15 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
     CREATE INDEX IF NOT EXISTS idx_orders_concert ON orders(concert_id);
   `);
+
+  const columns = db.prepare("PRAGMA table_info(order_items)").all() as { name: string }[];
+  const colNames = columns.map(c => c.name);
+  if (!colNames.includes('checkin_status')) {
+    db.prepare("ALTER TABLE order_items ADD COLUMN checkin_status TEXT DEFAULT 'unused'").run();
+  }
+  if (!colNames.includes('checked_in_at')) {
+    db.prepare("ALTER TABLE order_items ADD COLUMN checked_in_at DATETIME").run();
+  }
 
   const adminCheck = db.prepare('SELECT COUNT(*) as count FROM users WHERE role = ?').get('admin');
   if ((adminCheck as { count: number }).count === 0) {

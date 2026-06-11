@@ -250,7 +250,11 @@ router.get('/:id', authenticateToken, (req, res) => {
     attendee_id_no: item.ticket_holder_id_card,
     attendeeIdNo: item.ticket_holder_id_card,
     qr_code: item.qr_code,
-    qrCode: item.qr_code
+    qrCode: item.qr_code,
+    checkin_status: item.checkin_status || 'unused',
+    checkinStatus: item.checkin_status || 'unused',
+    checked_in_at: item.checked_in_at,
+    checkedInAt: item.checked_in_at
   }));
 
   res.json({

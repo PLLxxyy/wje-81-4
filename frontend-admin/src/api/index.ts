@@ -50,6 +50,12 @@ export const adminApi = {
     api.post('/admin/orders/refund/batch', { orderIds }),
   getSalesTrend: (params?: { concertId?: number; days?: number }) =>
     api.get('/admin/sales/trend', { params }),
+  checkinItem: (itemId: number) =>
+    api.post(`/admin/order-items/${itemId}/checkin`),
+  cancelCheckinItem: (itemId: number) =>
+    api.post(`/admin/order-items/${itemId}/checkin/cancel`),
+  batchCheckin: (orderId: number, itemIds?: number[]) =>
+    api.post(`/admin/orders/${orderId}/checkin/batch`, { item_ids: itemIds }),
 };
 
 export default api;

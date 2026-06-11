@@ -14,6 +14,8 @@ interface OrderItem {
   seat_number: string;
   tier_name: string;
   color?: string;
+  checkin_status: 'unused' | 'checked_in';
+  checked_in_at?: string;
 }
 
 interface Order {
@@ -42,6 +44,11 @@ const statusMap: Record<string, { label: string; color: string }> = {
   paid: { label: '已支付', color: 'bg-green-100 text-green-700' },
   refunded: { label: '已退款', color: 'bg-gray-100 text-gray-700' },
   cancelled: { label: '已取消', color: 'bg-red-100 text-red-700' },
+};
+
+const checkinMap: Record<string, { label: string; color: string; icon: string }> = {
+  unused: { label: '待入场', color: 'bg-gray-100 text-gray-600', icon: '○' },
+  checked_in: { label: '已入场', color: 'bg-green-100 text-green-700', icon: '✓' },
 };
 
 export default function OrderDetail() {
@@ -100,6 +107,9 @@ export default function OrderDetail() {
     );
   }
 
+  const checkedInCount = order.items.filter(i => i.checkin_status === 'checked_in').length;
+  const totalCount = order.items.length;
+
   return (
     <div>
       <Link to="/orders" className="text-gray-500 hover:text-primary-600 mb-6 inline-flex items-center gap-2">
@@ -110,9 +120,16 @@ export default function OrderDetail() {
         <div className="bg-gradient-to-r from-primary-500 to-primary-600 text-white p-8">
           <div className="flex items-start justify-between">
             <div>
-              <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium mb-3 ${statusMap[order.status].color}`}>
-                {statusMap[order.status].label}
-              </span>
+              <div className="flex items-center gap-3 flex-wrap mb-3">
+                <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${statusMap[order.status].color}`}>
+                  {statusMap[order.status].label}
+                </span>
+                {order.status === 'paid' && (
+                  <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white">
+                    入场进度 {checkedInCount}/{totalCount}
+                  </span>
+                )}
+              </div>
               <h1 className="text-2xl font-bold mb-2">{order.title}</h1>
               <p className="text-primary-100">{order.artist}</p>
             </div>
@@ -146,12 +163,15 @@ export default function OrderDetail() {
           <h3 className="text-lg font-bold text-gray-800 mb-4">电子票</h3>
           <div className="space-y-4">
             {order.items.map((item, index) => (
-              <div key={item.id} className="border rounded-xl p-6">
+              <div 
+                key={item.id} 
+                className={`border rounded-xl p-6 ${item.checkin_status === 'checked_in' ? 'border-green-200 bg-green-50/30' : ''}`}
+              >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4">
                     <div 
-                      className="w-3 h-16 rounded"
-                      style={{ backgroundColor: item.color || '#ccc' }}
+                      className={`w-3 h-16 rounded ${item.checkin_status === 'checked_in' ? 'bg-green-500' : ''}`}
+                      style={{ backgroundColor: item.checkin_status === 'checked_in' ? undefined : (item.color || '#ccc') }}
                     ></div>
                     <div>
                       <div className="text-lg font-bold text-gray-800">
@@ -168,6 +188,17 @@ export default function OrderDetail() {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-red-500">¥{item.price}</div>
+                    <div className="mt-2 flex justify-end">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${checkinMap[item.checkin_status].color}`}>
+                        <span>{checkinMap[item.checkin_status].icon}</span>
+                        {checkinMap[item.checkin_status].label}
+                      </span>
+                    </div>
+                    {item.checked_in_at && (
+                      <div className="mt-1 text-xs text-gray-400">
+                        入场时间：{new Date(item.checked_in_at).toLocaleString('zh-CN')}
+                      </div>
+                    )}
                     {order.status === 'paid' && (
                       <button
                         onClick={() => setShowQr(showQr === item.id ? null : item.id)}
